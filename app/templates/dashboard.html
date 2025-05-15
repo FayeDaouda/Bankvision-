@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard BankVision</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .navbar-brand {
+      font-weight: bold;
+    }
+    .dashboard-header {
+      background: #0d6efd;
+      color: white;
+      padding: 2rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      border-radius: 0.75rem;
+    }
+    canvas {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barre de navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="#">🏦 BankVision</a>
+      <div class="d-flex align-items-center">
+        <span class="text-white me-3">Bienvenue {{ user.username }}</span>
+        <form id="logoutForm" action="/logout" method="POST" style="display: inline;">
+            <button type="submit" class="btn btn-outline-light btn-sm">Déconnexion</button>
+          </form>
+          
+      </div>
+    </div>
+  </nav>
+
+  <!-- Contenu principal -->
+  <div class="container mt-4">
+
+    <!-- En-tête -->
+    <div class="dashboard-header text-center">
+      <h1 class="mb-3">Bonjour {{ user.username }} 👋</h1>
+      <p class="lead">Email : {{ user.email }}</p>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row g-4 mb-5">
+      <div class="col-md-3">
+        <div class="card text-white bg-success shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Utilisateurs</h5>
+            <p class="card-text fs-4">{{ total_users }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-info shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Comptes</h5>
+            <p class="card-text fs-4">{{ total_accounts }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-warning shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Solde total</h5>
+            <p class="card-text fs-4">{{ total_balance }} FCFA</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-danger shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Transactions</h5>
+            <p class="card-text fs-4">{{ total_transactions }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graphique -->
+    <div class="mb-5">
+      <h3>Évolution des transactions</h3>
+      <canvas id="transactionChart" height="100"></canvas>
+    </div>
+
+    <!-- Section Mes comptes -->
+    <div class="mb-5">
+      <h3>Mes comptes</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Numéro de compte</th>
+              <th>Type</th>
+              <th>Solde</th>
+              <th>Date de création</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for account in user_accounts %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ account.number }}</td>
+              <td>{{ account.type }}</td>
+              <td>{{ account.balance }} FCFA</td>
+              <td>{{ account.created_at }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center">Aucun compte trouvé.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    const ctx = document.getElementById('transactionChart').getContext('2d');
+    const transactionChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: {{ chart_labels | safe }}, // ex: ['Jan', 'Feb', 'Mar']
+        datasets: [{
+          label: 'Transactions',
+          data: {{ chart_data | safe }}, // ex: [100, 120, 90]
+          fill: true,
+          backgroundColor: 'rgba(13, 110, 253, 0.2)',
+          borderColor: 'rgba(13, 110, 253, 1)',
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top'
+          }
+        }
+      }
+    });
+
+    document.getElementById('logoutForm').addEventListener('submit', function(e) {
+    e.preventDefault(); // Empêche le rechargement classique
+
+    fetch('/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('access_token')  // ou sessionStorage selon ton app
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        localStorage.removeItem('access_token');
+        alert("Déconnexion réussie !");
+        window.location.href = '/'; // rediriger vers accueil ou login
+      } else {
+        return response.json().then(data => {
+          alert(data.msg || "Erreur de déconnexion");
+        });
+      }
+    })
+    .catch(error => {
+      console.error("Erreur :", error);
+      alert("Erreur de connexion au serveur.");
+    });
+  });
+  </script>
+</body>
+</html>

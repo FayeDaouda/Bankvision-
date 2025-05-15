@@ -9,31 +9,27 @@ db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 
-# 🔒 Liste noire pour les tokens JWT révoqués
 BLACKLIST = set()
-
-# Importation du blueprint 'auth' depuis le fichier 'auth.py'
-from .auth import auth  # Assure-toi de cette ligne
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    CORS(app)
+    CORS(app, origins=["http://localhost:8080"])
 
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # Enregistrement des blueprints
-    from .routes import main
+    from app.auth import auth
+    from app.routes import main
+
+    app.register_blueprint(auth)
     app.register_blueprint(main)
-    app.register_blueprint(auth)  # Assure-toi d'enregistrer 'auth'
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload["jti"]
+        return jti in BLACKLIST
 
     return app
-
-# 🔁 Vérifie si le token est dans la blacklist
-@jwt.token_in_blocklist_loader
-def check_if_token_revoked(jwt_header, jwt_payload):
-    jti = jwt_payload["jti"]
-    return jti in BLACKLIST

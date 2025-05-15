@@ -21,7 +21,7 @@
       const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
   
-      const response = await fetch("http://localhost:8080/login", {
+      const response = await fetch("http://127.0.0.1:8080/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -29,17 +29,47 @@
         body: JSON.stringify({ username, password })
       });
   
-      const data = await response.json();
       const resultDiv = document.getElementById("result");
   
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        resultDiv.innerHTML = "Erreur : réponse invalide du serveur.";
+        return;
+      }
+  
       if (response.ok) {
+        // Sauvegarder le token
         localStorage.setItem('token', data.access_token);
-        window.location.href = '/dashboard'; // Redirige vers une page protégée
+  
+        // Charger le dashboard avec le token JWT
+        const dashResponse = await fetch("http://127.0.0.1:8080/dashboard", {
+          headers: {
+            "Authorization": "Bearer " + data.access_token
+          }
+        });
+  
+        if (dashResponse.ok) {
+          const dashboardHtml = await dashResponse.text();
+          document.body.innerHTML = dashboardHtml;
         } else {
-        resultDiv.innerHTML = `Erreur : ${data.msg}`;
+          // Gestion d'erreur pour dashboard
+          const contentType = dashResponse.headers.get("Content-Type");
+          if (contentType && contentType.includes("application/json")) {
+            const err = await dashResponse.json();
+            resultDiv.innerHTML = `Erreur accès dashboard : ${err.msg}`;
+          } else {
+            const errorText = await dashResponse.text();
+            resultDiv.innerHTML = `Erreur serveur : <pre>${errorText}</pre>`;
+          }
         }
+      } else {
+        resultDiv.innerHTML = `Erreur : ${data.msg}`;
+      }
     });
   </script>
+  
   
 </body>
 </html>
